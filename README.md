@@ -121,5 +121,6 @@ Your VS Code Chat Mode prompt content here...
 
 ## Roadmap
 
+- [ ] Add support for determining if a markdown file actually is or is not a prompt, and filter out non-prompt files found
 - [ ] Support separate lists in config for system vs user prompts
 - [ ] Add support for mapping VS Code tools to CodeCompanion tools to the extent possible
