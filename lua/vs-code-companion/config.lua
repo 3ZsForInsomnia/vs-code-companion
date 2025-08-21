@@ -1,10 +1,9 @@
--- Configuration module
 local M = {}
 
 local default_config = {
 	directories = {
-		"prompts",
-		".github/chatmode",
+		".github/prompts",
+		".github/chatmodes",
 	},
 }
 

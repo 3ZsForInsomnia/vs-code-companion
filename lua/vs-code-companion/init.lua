@@ -1,24 +1,21 @@
--- Main plugin module
 local M = {}
 
-local config = require('vs-code-companion.config')
-local ui = require('vs-code-companion.ui')
-
 function M.setup(user_config)
-  config.setup(user_config or {})
-  
-  -- Load user commands
-  require('vs-code-companion.commands')
+	require("vs-code-companion.config").setup(user_config or {})
 end
 
--- Exposed API functions
-function M.select_prompt()
-  ui.select_from_directories(config.get().directories, "Select Prompt")
-end
+M.import_slash_command = {
+	description = "Import from VS Code",
+	callback = function()
+		require("vs-code-companion.codecompanion.commands").import_all_prompts()
+	end,
+}
 
--- Get configuration for external access
-function M.get_config()
-  return config.get()
-end
+M.select_slash_command = {
+	description = "Select from VS Code",
+	callback = function()
+		require("vs-code-companion.commands").handle_selection()
+	end,
+}
 
 return M

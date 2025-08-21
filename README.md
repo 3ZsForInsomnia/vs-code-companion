@@ -1,118 +1,88 @@
 # vs-code-companion.nvim
 
-A Neovim plugin for managing markdown-based AI prompts with CodeCompanion integration.
+Want to use all the fancy prompts your VS Code using teammates are using with AI? Now you can use them in Neovim too, with this plugin and CodeCompanion!
+
+This plugin imports VS Code AI prompts for seamless use with [CodeCompanion](https://codecompanion.olimorris.dev/) in Neovim, allowing the sharing of prompts across editors without friction. Perfect for teams working across different editors or developers switching from VS Code to Neovim!
+
+## Why Use This Plugin?
+
+- **Cross-Editor Compatibility**: Use VS Code Chat Mode prompts in Neovim
+- **Team Consistency**: Share the same prompt library across VS Code and Neovim users
+- **Migration-Friendly**: Seamlessly import existing VS Code prompt collections
+- **Zero Conversion**: Works with VS Code's standard markdown + YAML frontmatter format
+- **Instant Access**: Browse and apply prompts via Telescope or vim.ui.select
+- **Smart Integration**: Automatically sets AI models and tools from VS Code frontmatter
 
 ## Features
 
- - Simple unified interface for prompt selection
- - Automatic Telescope integration when available (no separate commands needed)
+- **VS Code Format Support**: Reads VS Code Chat Mode markdown files with YAML frontmatter
+- **Prompt Library Import**: Import VS Code prompts into CodeCompanion's prompt library
+- **Telescope Integration**: Beautiful fuzzy search with file previews when available
 
-## Installation
-**Requirements**: This plugin requires your project to be in a git repository, as it searches for markdown files relative to the git root.
+## Installation and configuration
 
 **Dependencies**: 
-- [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) - Required for chat integration
+- [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) - Required for AI chat integration
 - [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) - Optional, for enhanced file picker
+
+**Config options**:
+- **`directories`** (table): List of directories to search for markdown prompts
+  - Paths are relative to the git repository root
+  - Searches recursively in each directory listed for `*.md` files
+  - Default: `{'.github/prompts', '.github/chatmodes'}`
 
 Using lazy.nvim:
 
 ```lua
 {
-  'your-username/vs-code-companion.nvim',
+  'olimorris/codecompanion.nvim',
   dependencies = {
-    'olimorris/codecompanion.nvim', -- Required
-    'nvim-telescope/telescope.nvim', -- Optional
-    'nvim-lua/plenary.nvim', -- Required by telescope
-  },
-  config = function()
-    require('vs-code-companion').setup({
+    {
+      '3ZsForInsomnia/vs-code-companion.nvim',
+      opts = {
         directories = {
-          'prompts',
+          '.github/chatmodes',
           '.github/prompts',
           'docs/ai-prompts',
-      },
-    })
-    
-    -- Optional: Load telescope extension
-    require('telescope').load_extension('vs_code_companion')
-    
-      -- Optional: Load CodeCompanion extension for slash command
-      -- This enables the /prompts slash command in CodeCompanion chat
-      
-    -- Optional: Create keymaps
-      vim.keymap.set('n', '<leader>p', '<cmd>VsPrompts<cr>', { desc = 'Select Prompts' })
+        }
+      }
+  },
+  opts = {...}
+  config = function(_, opts)
+    -- Optional, but a nicer way to quickly import prompts when in a CodeCompanion buffer
+    opts.strategies.chat.slash_commands = {
+      vs_import = require("vs-code-companion").import_slash_command,
+      vs_select = require("vs-code-companion").select_slash_command,
+    }
+    require("codecompanion").setup(opts)
   end,
 }
 ```
 
 ## Usage
 
-### Basic Workflow
+**Requirements**: This plugin requires your project to be in a git repository, as it searches for markdown files relative to the git root.
 
-1. **Open a CodeCompanion chat buffer** (using `:CodeCompanionChat` or similar)
-2. **Select a prompt** using either:
-   - `:VsPrompts` command (automatically uses Telescope if available)
-   - `/prompts` slash command (if CodeCompanion extension is loaded)
-3. **The plugin will automatically**:
-   - Set the model based on frontmatter
-   - Add the prompt as a user message with tools
-   - Include tools from frontmatter in the message
+#### Importing prompts
 
-### Lua API
+`:VsccImport` 
+- Import all prompts found, and creates CodeCompanion slash commands for each one
+- Creates individual `/command_name` slash commands for each prompt file
+- Command names are generated from filenames (sanitized for Lua), prefixed with `vsc_` for easy finding
 
-```lua
--- Main function
-require('vs-code-companion').select_prompt()
-```
+#### Selecting prompts
 
-### CodeCompanion Slash Command
-
-If you have CodeCompanion and load the vs-code-companion extension, you get:
-
-- `/prompts` - Search and apply prompts directly in CodeCompanion chat
-
-### Telescope Extension
-
-```lua
-require('telescope').load_extension('vs_code_companion')
-
- -- The main VsPrompts command will automatically use Telescope if available
-```
-
-### Vim Commands
-
-The plugin provides these built-in commands:
-
-
-## Markdown File Format
-
-The plugin expects markdown files with YAML frontmatter:
-
-```markdown
----
-description: Generate an implementation plan for new features or refactoring existing code.
-tools: ['codebase', 'fetch', 'findTestFiles', 'githubRepo', 'search', 'usages']
-model: Claude Sonnet 4
----
-
-Your prompt content goes here...
-```
-
-## Configuration
-
-```lua
-require('vs-code-companion').setup({
-  directories = {
-    'prompts',
-    '.github/prompts',
-    'docs/ai-prompts',
-  },
-})
-```
+`VsccSelect`
+- **`:VsccSelect`** - Browse and select prompts from the configured directories
+- Automatically uses Telescope if available, falls back to vim.ui.select
+- Works from any buffer - will open CodeCompanion chat after a selection is made
+- Immediately adds the prompt text to the CodeCompanion chat buffer, but does not _send_ the message
+  - This makes it easy to add your own text!
 
 ## Supported Models
 
-The plugin automatically converts "nice" model names from frontmatter to technical names:
+The plugin automatically converts "nice" model names in the markdown frontmatter to their "actual" names:
+
 
 | Display Name | Technical Name |
 |--------------|----------------|
@@ -126,38 +96,30 @@ The plugin automatically converts "nice" model names from frontmatter to technic
 | Gemini 2.5 Pro | gemini-2.5-pro |
 | Gemini 2.5 Flash | gemini-2.5-flash |
 
+
 You can extend the model mappings by modifying `lua/vs-code-companion/utils/models.lua`.
 
-## Health Check
+## VS Code Chat Mode Format
 
-Run `:checkhealth vs-code-companion` to verify:
-- Plugin is loaded correctly
-- Git repository is detected
-- Configured directories exist
-- CodeCompanion is available
-- Telescope is available (if using telescope extension)
-## Troubleshooting
+This plugin reads VS Code's standard Chat Mode format, which are simple markdown files with YAML frontmatter. For an example of how VS Code uses these files, see [VS Code's Chat Modes documentation](https://code.visualstudio.com/docs/copilot/chat/chat-modes).
 
-### "Not in a git repository" error
-Ensure you're running Neovim from within a git repository. The plugin needs a git root to resolve relative directory paths.
+### YAML Frontmatter Options
 
-### "Please open or navigate to a CodeCompanion chat buffer first"
-Open a CodeCompanion chat session before selecting prompts:
-```vim
-:CodeCompanionChat
+```markdown
+---
+description: "Brief description shown in picker (VS Code standard)"
+model: "Claude Sonnet 4"
+tools: ['codebase', 'search', 'usages']
+---
+
+Your VS Code Chat Mode prompt content here...
 ```
 
-### "No markdown files found in configured directories"
-1. Check that your directories exist relative to the git root
-2. Verify the directories contain `.md` files
-3. Run `:checkhealth vs-code-companion` to see resolved paths
+- **`description`** (string): Short description shown in pickers (VS Code standard field)
+- **`model`** (string): AI model name (VS Code format, automatically converted)
+- **`tools`** (array): VS Code tool names (currently replaced by using CodeCompanion's `@{full_stack_dev}` for simplicity until a better mapping setup is created)
 
-### Model not being set
-1. Ensure CodeCompanion is properly installed
-2. Check that the model name in frontmatter is supported (see model mapping table)
-3. Verify you're in a CodeCompanion chat buffer when selecting prompts
+## Roadmap
 
-### Tools not working as expected
-1. Verify the `tools` array in frontmatter is properly formatted: `tools: ['tool1', 'tool2']`
-2. Check CodeCompanion documentation for supported tool names
-3. Ensure your CodeCompanion version supports the tools feature
+- [ ] Support separate lists in config for system vs user prompts
+- [ ] Add support for mapping VS Code tools to CodeCompanion tools to the extent possible
