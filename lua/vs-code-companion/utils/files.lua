@@ -62,6 +62,11 @@ function M.get_file_info(filepath)
 
 	local parsed = frontmatter.parse(content)
 
+	-- Validate that this is a proper prompt file
+	if not M.is_valid_prompt_file(parsed) then
+		return nil
+	end
+
 	return {
 		filepath = filepath,
 		filename = v.fn.fnamemodify(filepath, ":t"),
@@ -69,6 +74,30 @@ function M.get_file_info(filepath)
 		content = parsed.content,
 		raw_content = content,
 	}
+end
+
+-- Validate that a markdown file is a proper prompt file
+function M.is_valid_prompt_file(parsed)
+	-- Must have frontmatter with at least a description
+	if not parsed.frontmatter or type(parsed.frontmatter) ~= "table" then
+		return false
+	end
+	
+	-- Must have a description property
+	if not parsed.frontmatter.description or 
+	   type(parsed.frontmatter.description) ~= "string" or 
+	   parsed.frontmatter.description:match("^%s*$") then
+		return false
+	end
+	
+	-- Must have actual content (not just whitespace)
+	if not parsed.content or 
+	   type(parsed.content) ~= "string" or 
+	   parsed.content:match("^%s*$") then
+		return false
+	end
+	
+	return true
 end
 
 function M.get_markdown_files_info(directories)

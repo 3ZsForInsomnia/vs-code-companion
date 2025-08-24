@@ -4,8 +4,8 @@ local M = {}
 
 local display = require("vs-code-companion.ui.display")
 
-function M.use_vim_ui_select(files_info, selection_handler)
-	local items = display.create_display_items(files_info)
+function M.use_vim_ui_select(prompts_info, selection_handler)
+	local items = display.create_display_items(prompts_info)
 
 	v.ui.select(items, {
 		prompt = "Select from Prompt Library",
@@ -14,8 +14,8 @@ function M.use_vim_ui_select(files_info, selection_handler)
 		end,
 	}, function(choice, idx)
 		if choice and idx then
-			local selected_file = files_info[idx]
-			selection_handler(selected_file)
+			local selected_prompt = prompts_info[idx]
+			selection_handler(selected_prompt)
 		end
 	end)
 end

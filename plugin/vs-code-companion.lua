@@ -17,5 +17,5 @@ end, { desc = "Select and use a prompt from configured directories" })
 
 vim.api.nvim_create_user_command("VsccImport", function()
 	lazy_setup()
-	require("vs-code-companion.codecompanion.commands").import_all_prompts()
+	require("vs-code-companion.codecompanion.commands").import_all_prompts_with_feedback()
 end, { desc = "Import all prompts as slash commands" })
