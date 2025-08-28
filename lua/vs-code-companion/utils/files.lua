@@ -82,21 +82,21 @@ function M.is_valid_prompt_file(parsed)
 	if not parsed.frontmatter or type(parsed.frontmatter) ~= "table" then
 		return false
 	end
-	
+
 	-- Must have a description property
-	if not parsed.frontmatter.description or 
-	   type(parsed.frontmatter.description) ~= "string" or 
-	   parsed.frontmatter.description:match("^%s*$") then
+	if
+		not parsed.frontmatter.description
+		or type(parsed.frontmatter.description) ~= "string"
+		or parsed.frontmatter.description:match("^%s*$")
+	then
 		return false
 	end
-	
+
 	-- Must have actual content (not just whitespace)
-	if not parsed.content or 
-	   type(parsed.content) ~= "string" or 
-	   parsed.content:match("^%s*$") then
+	if not parsed.content or type(parsed.content) ~= "string" or parsed.content:match("^%s*$") then
 		return false
 	end
-	
+
 	return true
 end
 
