@@ -31,7 +31,7 @@ function M.ensure_chat_open()
 
 	v.defer_fn(function()
 		if v.bo.filetype ~= "codecompanion" then
-			v.notify("vs-code-companion: Failed to open CodeCompanion chat", v.log.levels.ERROR)
+			v.notify("vs-code-companion: Could not open CodeCompanion chat - ensure CodeCompanion is properly configured", v.log.levels.ERROR)
 		end
 	end, 50)
 

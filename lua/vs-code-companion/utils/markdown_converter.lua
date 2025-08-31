@@ -2,6 +2,10 @@ local M = {}
 
 -- Helper function to safely get content from a prompt (handles both string and function content)
 function M.get_prompt_content(prompt)
+	if not prompt then
+		return ""
+	end
+	
 	local content = prompt.content or ""
 	
 	-- Handle case where content is a function
@@ -25,6 +29,10 @@ end
 -- Convert codecompanion prompt to markdown with YAML frontmatter
 -- This is exposed as a public utility function
 function M.codecompanion_to_markdown(prompt_data, prompt_name)
+	if not prompt_data or type(prompt_data) ~= "table" then
+		return ""
+	end
+	
 	local lines = {}
 	
 	-- Add frontmatter

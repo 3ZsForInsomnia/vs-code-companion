@@ -5,11 +5,41 @@ local M = {}
 local models = require("vs-code-companion.codecompanion.models")
 local chat = require("vs-code-companion.codecompanion.chat")
 
+-- Helper function to ensure CodeCompanion is available and ready
+local function ensure_codecompanion_ready()
+	local ok, codecompanion_config = pcall(require, "codecompanion.config")
+	if not ok then
+		error("vs-code-companion: CodeCompanion is not installed or loaded. Please ensure codecompanion.nvim is properly installed and configured.")
+	end
+	
+	if not codecompanion_config then
+		error("vs-code-companion: CodeCompanion configuration is not available. Please ensure CodeCompanion is properly set up.")
+	end
+	
+	return codecompanion_config
+end
+
 local function generate_command_name(filename)
-	local name = filename:gsub("%.md$", ""):gsub("[^%w]", "_")
+	if not filename or type(filename) ~= "string" or filename:match("^%s*$") then
+		error("vs-code-companion: Cannot generate command name from empty/invalid filename")
+	end
+	
+	-- Remove .md extension and sanitize
+	local name = filename:gsub("%.md$", ""):gsub("[^%w]", "_"):lower()
+	
+	-- Remove any leading/trailing underscores and collapse multiple underscores
+	name = name:gsub("^_+", ""):gsub("_+$", ""):gsub("_+", "_")
+	
+	-- After sanitization, ensure we still have something meaningful
+	if name == "" then
+		error("vs-code-companion: Filename '" .. filename .. "' produces no valid command name after sanitization")
+	end
+	
+	-- Ensure it starts with a letter or underscore (for Lua identifier rules)
 	if not name:match("^[%a_]") then
 		name = "_" .. name
 	end
+	
 	return "vsc_" .. name
 end
 
@@ -17,16 +47,12 @@ local create_slash_cmd_prompt = function(file_info, force_overwrite)
 	force_overwrite = force_overwrite or false
 	
 	if not file_info.content or file_info.content == "" then
-		v.notify("vs-code-companion: No content to create command from", v.log.levels.WARN)
-		return false
+		return false, "No content to create command from"
 	end
 
 	local command_name = generate_command_name(file_info.filename)
 
-	local codecompanion_config = require("codecompanion.config")
-	if not codecompanion_config then
-		return false
-	end
+	local codecompanion_config = ensure_codecompanion_ready()
 
 	if not codecompanion_config.prompt_library then
 		codecompanion_config.prompt_library = {}
@@ -34,7 +60,7 @@ local create_slash_cmd_prompt = function(file_info, force_overwrite)
 
 	-- Skip if already exists (avoid duplicates), unless forcing overwrite
 	if codecompanion_config.prompt_library[command_name] and not force_overwrite then
-		return false
+		return false, "Command already exists (use force overwrite to replace)"
 	end
 
 	local content = chat.append_tool_instruction_if_needed(file_info.content)
@@ -64,10 +90,18 @@ local create_slash_cmd_prompt = function(file_info, force_overwrite)
 
 	codecompanion_config.prompt_library[command_name] = prompt_entry
 
-	return true
+	return true, "Successfully imported as /" .. command_name
 end
 
 function M.import_all_prompts()
+	-- Ensure CodeCompanion is ready before attempting any imports
+	local ok, err = pcall(ensure_codecompanion_ready)
+	if not ok then
+		v.notify("vs-code-companion: Import failed - " .. (err or "CodeCompanion not available"), v.log.levels.ERROR)
+		vim.cmd("echomsg 'vs-code-companion: " .. (err or "CodeCompanion not available") .. "'")
+		return false
+	end
+
 	local directories = require("vs-code-companion.config").get().directories
 	local prompts = require("vs-code-companion.utils.prompts")
 	local prompts_info = prompts.get_all_prompts_info(directories)
@@ -81,23 +115,56 @@ function M.import_all_prompts()
 	end
 
 	if #markdown_prompts == 0 then
+		-- Always notify about import results
+		v.notify("vs-code-companion: Imported 0/0 prompts successfully", v.log.levels.INFO)
+		vim.cmd("echomsg 'vs-code-companion: No prompt files found in configured directories'")
 		return false
 	end
 
 	local success_count = 0
 	local total_count = #markdown_prompts
+	local results = {}
 
 	for _, file_info in ipairs(markdown_prompts) do
-		if create_slash_cmd_prompt(file_info) then
+		local success, message = create_slash_cmd_prompt(file_info)
+		if success then
 			success_count = success_count + 1
+			table.insert(results, {
+				filename = file_info.filename,
+				success = true,
+				message = message
+			})
+		else
+			table.insert(results, {
+				filename = file_info.filename,
+				success = false,
+				message = message
+			})
+		end
+	end
+	-- Always notify about import results
+	v.notify(string.format("vs-code-companion: Imported %d/%d prompts successfully", success_count, total_count), v.log.levels.INFO)
+	
+	-- Always log detailed results to :messages
+	for _, result in ipairs(results) do
+		if result.success then
+			vim.cmd(string.format("echomsg 'vs-code-companion: %s - %s'", result.filename, result.message))
+		else
+			vim.cmd(string.format("echomsg 'vs-code-companion: Failed to import %s - %s'", result.filename, result.message))
 		end
 	end
 
 	return success_count > 0
 end
-
--- Manual import with user feedback (for VsccImport command)
 function M.import_all_prompts_with_feedback()
+	-- Ensure CodeCompanion is ready before attempting any imports
+	local ok, err = pcall(ensure_codecompanion_ready)
+	if not ok then
+		v.notify("vs-code-companion: Import failed - " .. (err or "CodeCompanion not available"), v.log.levels.ERROR)
+		vim.cmd("echomsg 'vs-code-companion: " .. (err or "CodeCompanion not available") .. "'")
+		return false
+	end
+
 	local directories = require("vs-code-companion.config").get().directories
 	local prompts = require("vs-code-companion.utils.prompts")
 	local prompts_info = prompts.get_all_prompts_info(directories)
@@ -111,32 +178,43 @@ function M.import_all_prompts_with_feedback()
 	end
 
 	if #markdown_prompts == 0 then
-		v.notify("vs-code-companion: No prompt files found in configured directories", v.log.levels.WARN)
+		v.notify("vs-code-companion: Imported 0/0 prompts successfully", v.log.levels.INFO)
+		vim.cmd("echomsg 'vs-code-companion: No prompt files found in configured directories'")
 		return false
 	end
 
 	local success_count = 0
 	local total_count = #markdown_prompts
+	local results = {}
 
 	for _, file_info in ipairs(markdown_prompts) do
-		if create_slash_cmd_prompt(file_info, true) then -- force overwrite for manual import
+		local success, message = create_slash_cmd_prompt(file_info, true) -- force overwrite for manual import
+		if success then
 			success_count = success_count + 1
+			table.insert(results, {
+				filename = file_info.filename,
+				success = true,
+				message = message
+			})
+		else
+			table.insert(results, {
+				filename = file_info.filename,
+				success = false,
+				message = message
+			})
 		end
 	end
 
-	if success_count > 0 then
-		v.notify(
-			string.format(
-				"vs-code-companion: Successfully imported %d/%d prompts as slash commands",
-				success_count,
-				total_count
-			),
-			v.log.levels.INFO
-		)
-		return true
-	else
-		v.notify("vs-code-companion: Failed to import any prompts", v.log.levels.ERROR)
-		return false
+	-- Always notify about import results
+	v.notify(string.format("vs-code-companion: Imported %d/%d prompts successfully", success_count, total_count), v.log.levels.INFO)
+	
+	-- Always log detailed results to :messages
+	for _, result in ipairs(results) do
+		if result.success then
+			vim.cmd(string.format("echomsg 'vs-code-companion: %s - %s'", result.filename, result.message))
+		else
+			vim.cmd(string.format("echomsg 'vs-code-companion: Failed to import %s - %s'", result.filename, result.message))
+		end
 	end
 end
 

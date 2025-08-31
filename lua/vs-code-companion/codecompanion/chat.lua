@@ -12,7 +12,7 @@ end
 
 function M.add_user_message(content)
 	if not content or content == "" then
-		v.notify("vs-code-companion: No content to send", v.log.levels.WARN)
+		v.notify("vs-code-companion: Cannot add empty message to chat", v.log.levels.WARN)
 		return false
 	end
 
@@ -32,7 +32,7 @@ function M.add_user_message(content)
 					content = content,
 				})
 			else
-				v.notify("vs-code-companion: Could not get chat instance", v.log.levels.ERROR)
+				v.notify("vs-code-companion: Failed to add message - CodeCompanion chat is not responding", v.log.levels.ERROR)
 			end
 		end, 100)
 	end

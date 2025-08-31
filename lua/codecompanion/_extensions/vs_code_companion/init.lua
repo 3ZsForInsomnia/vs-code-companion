@@ -1,3 +1,10 @@
+local function ensure_setup()
+	if not vim.g.vs_code_companion_setup then
+		require("vs-code-companion").setup()
+		vim.g.vs_code_companion_setup = true
+	end
+end
+
 local setup = function(opts)
 	require("vs-code-companion.config").setup(opts or {})
 	require("vs-code-companion.commands")
@@ -7,6 +14,7 @@ local exports = {
 	library_prompts = {
 		description = "Search and apply prompts from configured directories",
 		callback = function(chat)
+			ensure_setup()
 			-- Always re-import VS Code prompts before selection (fast!)
 			require("vs-code-companion.codecompanion.commands").import_all_prompts()
 			

@@ -30,11 +30,20 @@ function M.get_codecompanion_prompts_info()
 	local prompts_info = {}
 	
 	local ok, codecompanion_config = pcall(require, "codecompanion.config")
-	if not ok or not codecompanion_config.prompt_library then
+	if not ok then
 		return prompts_info
 	end
 	
-	for name, prompt_data in pairs(codecompanion_config.prompt_library) do
+	local prompt_library = codecompanion_config and codecompanion_config.prompt_library
+	if not prompt_library or type(prompt_library) ~= "table" then
+		return prompts_info
+	end
+	
+	for name, prompt_data in pairs(prompt_library) do
+		if type(prompt_data) ~= "table" then
+			goto continue
+		end
+		
 		local info = {
 			name = name,
 			filename = name, -- Use name as filename for consistency
@@ -49,6 +58,8 @@ function M.get_codecompanion_prompts_info()
 			prompt_data = prompt_data, -- Store original data for later use
 		}
 		table.insert(prompts_info, info)
+		
+		::continue::
 	end
 	
 	return prompts_info

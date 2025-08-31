@@ -14,6 +14,11 @@ local model_mappings = {
 	["GPT-4o"] = "gpt-4o",
 	["GPT-4o Mini"] = "gpt-4o-mini",
 	["GPT-3.5 Turbo"] = "gpt-3.5-turbo",
+	["GPT-5"] = "gpt-5",
+	["GPT-5 Mini"] = "gpt-5-mini",
+	["GPT-5 Nano"] = "gpt-5-nano",
+	["GPT-5 Chat"] = "gpt-5-chat",
+	["GPT-5 Chat Latest"] = "gpt-5-chat-latest",
 
 	["Gemini 2.5 Pro"] = "gemini-2.5-pro",
 	["Gemini 2.5 Flash"] = "gemini-2.5-flash",

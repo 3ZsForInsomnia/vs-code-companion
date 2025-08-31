@@ -16,7 +16,27 @@ local chat = require("vs-code-companion.codecompanion.chat")
 
 local M = {}
 
--- Create enhanced previewer for both markdown and codecompanion prompts
+ -- Safe file reading utility with proper resource management
+ local function read_file_safely(filepath)
+ 	if not filepath or filepath == "" then
+ 		return nil, "Invalid filepath provided"
+ 	end
+ 	
+ 	local file, open_err = io.open(filepath, "r")
+ 	if not file then
+ 		return nil, "Could not open file: " .. (open_err or "unknown error")
+ 	end
+ 	
+ 	local content, read_err = file:read("*all")
+ 	file:close() -- Always close the file handle
+ 	
+ 	if not content then
+ 		return nil, "Could not read file content: " .. (read_err or "unknown error")
+ 	end
+ 	
+ 	return content
+ end
+ 
 function M.create_enhanced_previewer()
 	local previewers = require("telescope.previewers")
 	local highlighting = require("vs-code-companion.utils.highlighting")
@@ -30,13 +50,12 @@ function M.create_enhanced_previewer()
 			
 			if prompt_info.source == "markdown" and prompt_info.filepath then
 				-- Pipeline step 1: Read markdown file content
-				local file = io.open(prompt_info.filepath, "r")
-				if file then
-					content = file:read("*all")
-					file:close()
+				local file_content, err = read_file_safely(prompt_info.filepath)
+				if file_content then
+					content = file_content
 					lines = vim.split(content, "\n")
 				else
-					lines = {"Error: Could not read file"}
+					lines = {"Error: " .. (err or "Could not read file")}
 				end
 			else
 				-- Pipeline step 1: Convert codecompanion prompt to markdown
