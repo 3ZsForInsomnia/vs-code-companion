@@ -15,17 +15,11 @@ local function validate_config(user_config)
 		end
 	end
 
-	if user_config.picker then
-		local valid_pickers = { "auto", "telescope", "vim_ui" }
-		if not vim.tbl_contains(valid_pickers, user_config.picker) then
-			error("vs-code-companion: config.picker must be one of: " .. table.concat(valid_pickers, ", "))
+	if user_config.transform then
+		if type(user_config.transform) ~= "table" then
+			error("vs-code-companion: config.transform must be a table")
 		end
-	end
-
-	if user_config.highlights then
-		if type(user_config.highlights) ~= "table" then
-			error("vs-code-companion: config.highlights must be a table")
-		end
+		-- TODO: Add more detailed validation for transform config structure
 	end
 
 end
@@ -35,18 +29,7 @@ local default_config = {
 		".github/prompts",
 		".github/chatmodes",
 	},
-	picker = "auto", -- "auto", "telescope", "vim_ui"
-	highlights = {
-		yaml_key = { fg = "#79dac8", bold = true }, -- cyan for yaml keys
-		yaml_value = { fg = "#e39777" }, -- orange for yaml values
-		yaml_description = { fg = "#ff9e64" }, -- orange for description values
-		yaml_model = { fg = "#9d7cd8" }, -- purple for model values
-		yaml_tools = { fg = "#73daca" }, -- teal for tools values
-		system_header = { fg = "#f7768e", bold = true }, -- red for system headers
-		user_header = { fg = "#9ece6a", bold = true }, -- green for user headers
-		system_content = { fg = "#bb9af7" }, -- purple for system content
-		user_content = { fg = "#7dcfff" }, -- blue for user content
-	},
+	transform = nil, -- Uses defaults if nil, can be customized by users
 }
 
 local config = default_config

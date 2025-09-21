@@ -4,26 +4,27 @@ Import VS Code AI prompts into Neovim's [CodeCompanion](https://codecompanion.ol
 
 Perfect for teams using VS Code prompts or developers migrating from VS Code to Neovim.
 
+> **Looking for prompt browsing and selection?** Check out [code-companion-picker](https://github.com/3ZsForInsomnia/code-companion-picker) for advanced prompt selection with fuzzy search, previews, and customizable UI.
+
 ## Quick Start
 
 1. **Install** this plugin (requires [CodeCompanion](https://codecompanion.olimorris.dev/))
 2. **Create VS Code prompt files** in `.github/prompts/` in your project (or configure custom directories)
 3. **Import prompts**: Run `:VsccImport` to add VS Code prompts to CodeCompanion's library
-4. **Use prompts**: Run `:VsccSelect` to browse and apply prompts in CodeCompanion chat
+4. **Use prompts**: Access imported prompts as slash commands (e.g., `/vsc_my_prompt`) in CodeCompanion chat buffers
 
 ## Why Use This Plugin?
 
-✅ **Use existing VS Code prompts** in Neovim  
-✅ **Share prompt libraries** across team members and editors  
-✅ **Zero conversion needed** - works with [VS Code's standard format](https://code.visualstudio.com/docs/copilot/customization/prompt-files#_prompt-file-format)  
-✅ **Fuzzy search with previews** via Telescope integration  
+✅ **Use existing VS Code prompts** in Neovim
+✅ **Share prompt libraries** across team members and editors
+✅ **Zero conversion needed** - works with [VS Code's standard format](https://code.visualstudio.com/docs/copilot/customization/prompt-files#_prompt-file-format)
+✅ **Flexible transformation system** - customize how prompts are converted to CodeCompanion format
 ✅ **Smart AI model detection** from VS Code frontmatter
 
 ## Installation
 
 **Dependencies:**
 - [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) - Required
-- [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) - Optional, for enhanced picker with previews
 
 ### lazy.nvim
 
@@ -37,6 +38,103 @@ Perfect for teams using VS Code prompts or developers migrating from VS Code to 
     -- your codecompanion config
   }
 }
+```
+
+## Advanced Configuration
+
+### Customizing Prompt Transformation
+
+The plugin uses a flexible transformation system to convert VS Code markdown prompts into CodeCompanion format. You can customize how properties are extracted and transformed:
+
+```lua
+local getters = require("vs-code-companion").getters()
+local transforms = require("vs-code-companion").transforms()
+local defaults = require("vs-code-companion").defaults()
+
+{
+  '3ZsForInsomnia/vs-code-companion.nvim',
+  opts = {
+    directories = {'.github/prompts'},
+    transform = {
+      -- Use defaults for most properties
+      description = defaults.description,
+      content = defaults.content,
+      strategy = defaults.strategy,
+
+      -- Customize tools handling
+      tools = {
+        getter = getters.get_tools,
+        transform = transforms.transform_tools_full_stack_dev,
+      },
+
+      -- Disable certain properties
+      mapping = false,
+
+      -- Add custom getter/transform
+      custom_property = {
+        getter = function(file_info) 
+          -- Custom logic to extract value
+          return "custom_value"
+        end,
+        transform = function(value)
+          -- Custom logic to transform for CodeCompanion
+          return value
+        end,
+      },
+    }
+  }
+}
+```
+
+### Built-in Tool Variants
+
+The plugin provides several built-in approaches for handling VS Code tools:
+
+```lua
+-- No tools (default)
+local config1 = require("vs-code-companion").create_config_with_tools("none")
+
+-- Use CodeCompanion's full_stack_dev tool for all VS Code tool
+local config2 = require("vs-code-companion").create_config_with_tools("full_stack_dev")
+
+-- Attempt to map VS Code tools to CodeCompanion tools (future feature)
+local config3 = require("vs-code-companion").create_config_with_tools("mapped")
+```
+
+### One-time Import with Custom Config
+
+You can also import prompts with a custom transformation config without changing your main configuration:
+
+```lua
+-- Import once with full_stack_dev tools
+local custom_config = require("vs-code-companion").create_config_with_tools("full_stack_dev")
+require("vs-code-companion").import_prompts_with_config(custom_config)
+
+-- Or create a completely custom config
+local getters = require("vs-code-companion").getters()
+local transforms = require("vs-code-companion").transforms()
+
+local my_config = {
+  description = {
+    getter = getters.get_description,
+    transform = transforms.transform_description,
+    required = true,
+  },
+  content = {
+    getter = getters.get_content,
+    transform = function(content, role) 
+      -- Custom content transformation
+      return {
+        role = role or "user",
+        content = "CUSTOM PREFIX: " .. content,
+      }
+    end,
+    required = true,
+  },
+  -- ... other properties
+}
+
+require("vs-code-companion").import_prompts_with_config(my_config)
 ```
 
 ### packer.nvim
@@ -80,15 +178,12 @@ Learn more about [VS Code's prompt format](https://code.visualstudio.com/docs/co
 
 This reads VS Code prompt files from configured directories and adds them to CodeCompanion's prompt library as slash commands.
 
-### 3. Use Prompts
+### 3. Use Imported Prompts
 
-```vim
-:VsccSelect
-```
-
-Browse and select from ALL prompts (both imported VS Code prompts and existing CodeCompanion prompts). The selected prompt is added to a CodeCompanion chat buffer.
-
-**Note:** You can run `:VsccSelect` without importing first - it will show existing CodeCompanion prompts. Import with `:VsccImport` to include your VS Code prompts.
+Open a CodeCompanion chat buffer and use imported prompts as slash commands:
+- Type `/` to see all available commands
+- Use `/vsc_<filename>` where `<filename>` is your prompt file name (sanitized)
+- Example: `test-prompt.md` becomes `/vsc_test_prompt`
 
 ## CodeCompanion Integration
 
@@ -107,7 +202,6 @@ Add VS Code prompt functionality directly to CodeCompanion chat buffers by confi
       chat = {
         slash_commands = {
           vs_import = require("vs-code-companion").import_slash_command,
-          vs_select = require("vs-code-companion").select_slash_command,
         },
       },
     },
@@ -116,9 +210,7 @@ Add VS Code prompt functionality directly to CodeCompanion chat buffers by confi
 }
 ```
 
-This enables:
-- `/vs_import` - Import VS Code prompts from within a CodeCompanion buffer
-- `/vs_select` - Select and apply prompts from within a CodeCompanion buffer
+This enables `/vs_import` to import VS Code prompts from within a CodeCompanion buffer.
 
 ### VS Code Prompt Format
 
@@ -150,37 +242,45 @@ Basic configuration options:
   '3ZsForInsomnia/vs-code-companion.nvim',
   opts = {
     directories = {'.github/prompts', '.github/chatmodes'}, -- Where to find prompt files
-    picker = "auto", -- "auto", "telescope", or "vim_ui"  
   }
 }
 ```
 
-### Options
+## Future Features
 
-  - `"auto"` - Use Telescope if available, fall back to vim.ui.select
-  - `"telescope"` - Force Telescope (better experience with file previews)
-  - `"vim_ui"` - Force vim.ui.select
+### Planned Enhancements
 
-## Picker Integration
+- **Rules-based Configuration**: Configure different transformation rules based on file paths or names
+  ```lua
+  rules = {
+    {
+      pattern = "*.chatmode.md",
+      transform = custom_chatmode_config
+    },
+    {
+      pattern = ".github/prompts/**",
+      transform = github_prompts_config
+    }
+  }
+  ```
+  
+- **Required Field Validation**: Mark transformation properties as required and fail gracefully
+  ```lua
+  transform = {
+    description = {
+      getter = getters.get_description,
+      transform = transforms.transform_description,
+      required = true  -- Fail if this can't be extracted
+    }
+  }
+  ```
 
-### Telescope (Recommended)
-
-If you have [Telescope](https://github.com/nvim-telescope/telescope.nvim) installed, you'll get a better experience with fuzzy search and prompt previews.
-
-### Other Pickers
-
-Want to use [snacks.nvim](https://github.com/folke/snacks.nvim) or another picker? Use the public API functions:
-
-```lua
--- Get all prompts
-local prompts = require("vs-code-companion").get_all_prompts()
-
--- Create display text for a prompt
-local display = require("vs-code-companion").create_prompt_display_text(prompt_info)
-
--- Handle selection (opens CodeCompanion chat with prompt)
-require("vs-code-companion.ui.handlers").handle_file_selection(selected_prompt)
-```
+- **VS Code to CodeCompanion Tool Mapping**: Smart mapping of VS Code tools to equivalent CodeCompanion tools
+  ```lua
+  -- Future: automatic mapping like this
+  vs_code_tools = ["python", "typescript"] 
+  -- → codecompanion_tools = "@{python_dev}@{typescript_dev}"
+  ```
 
 ## Troubleshooting
 

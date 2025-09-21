@@ -2,8 +2,7 @@ local v = vim
 
 local M = {}
 
-local models = require("vs-code-companion.codecompanion.models")
-local chat = require("vs-code-companion.codecompanion.chat")
+local transformer = require("vs-code-companion.transform.transformer")
 
 -- Helper function to ensure CodeCompanion is available and ready
 local function ensure_codecompanion_ready()
@@ -43,14 +42,20 @@ local function generate_command_name(filename)
 	return "vsc_" .. name
 end
 
-local create_slash_cmd_prompt = function(file_info, force_overwrite)
+local create_slash_cmd_prompt = function(file_info, force_overwrite, transform_config)
 	force_overwrite = force_overwrite or false
 	
-	if not file_info.content or file_info.content == "" then
-		return false, "No content to create command from"
+	-- Use the transformation system to convert markdown to CodeCompanion format
+	local prompt_config, err = transformer.transform_to_codecompanion(file_info, transform_config)
+	if not prompt_config then
+		return false, err or "Failed to transform prompt"
 	end
-
-	local command_name = generate_command_name(file_info.filename)
+	
+	-- Extract command name from the generated config
+	local command_name = prompt_config.opts and prompt_config.opts.short_name
+	if not command_name then
+		command_name = generate_command_name(file_info.filename)
+	end
 
 	local codecompanion_config = ensure_codecompanion_ready()
 
@@ -63,32 +68,8 @@ local create_slash_cmd_prompt = function(file_info, force_overwrite)
 		return false, "Command already exists (use force overwrite to replace)"
 	end
 
-	local content = chat.append_tool_instruction_if_needed(file_info.content)
-
-	local prompt_entry = {
-		strategy = "chat",
-		description = file_info.frontmatter.description or ("Prompt from " .. file_info.filename),
-		opts = {
-			is_slash_cmd = true,
-			short_name = command_name,
-			auto_submit = false,
-		},
-		prompts = {
-			{
-				role = "user",
-				content = content,
-			},
-		},
-	}
-
-	if file_info.frontmatter.model then
-		local technical_name = models.resolve_model_name(file_info.frontmatter.model)
-		if technical_name and technical_name ~= "" then
-			prompt_entry.opts.model = technical_name
-		end
-	end
-
-	codecompanion_config.prompt_library[command_name] = prompt_entry
+	-- Use the transformed prompt config directly
+	codecompanion_config.prompt_library[command_name] = prompt_config
 
 	return true, "Successfully imported as /" .. command_name
 end
@@ -102,17 +83,11 @@ function M.import_all_prompts()
 		return false
 	end
 
-	local directories = require("vs-code-companion.config").get().directories
-	local prompts = require("vs-code-companion.utils.prompts")
-	local prompts_info = prompts.get_all_prompts_info(directories)
-
-	-- Filter to only markdown files for import (don't import codecompanion prompts as they're already there)
-	local markdown_prompts = {}
-	for _, prompt in ipairs(prompts_info) do
-		if prompt.source == "markdown" then
-			table.insert(markdown_prompts, prompt)
-		end
-	end
+	local config = require("vs-code-companion.config").get()
+	local directories = config.directories
+	local transform_config = config.transform -- Will be nil if not configured, which uses defaults
+	local files = require("vs-code-companion.utils.files")
+	local markdown_prompts = files.get_markdown_files_info(directories)
 
 	if #markdown_prompts == 0 then
 		-- Always notify about import results
@@ -126,7 +101,7 @@ function M.import_all_prompts()
 	local results = {}
 
 	for _, file_info in ipairs(markdown_prompts) do
-		local success, message = create_slash_cmd_prompt(file_info)
+		local success, message = create_slash_cmd_prompt(file_info, false, transform_config)
 		if success then
 			success_count = success_count + 1
 			table.insert(results, {
@@ -165,17 +140,11 @@ function M.import_all_prompts_with_feedback()
 		return false
 	end
 
-	local directories = require("vs-code-companion.config").get().directories
-	local prompts = require("vs-code-companion.utils.prompts")
-	local prompts_info = prompts.get_all_prompts_info(directories)
-
-	-- Filter to only markdown files for import
-	local markdown_prompts = {}
-	for _, prompt in ipairs(prompts_info) do
-		if prompt.source == "markdown" then
-			table.insert(markdown_prompts, prompt)
-		end
-	end
+	local config = require("vs-code-companion.config").get()
+	local directories = config.directories
+	local transform_config = config.transform -- Will be nil if not configured, which uses defaults
+	local files = require("vs-code-companion.utils.files")
+	local markdown_prompts = files.get_markdown_files_info(directories)
 
 	if #markdown_prompts == 0 then
 		v.notify("vs-code-companion: Imported 0/0 prompts successfully", v.log.levels.INFO)
@@ -188,7 +157,7 @@ function M.import_all_prompts_with_feedback()
 	local results = {}
 
 	for _, file_info in ipairs(markdown_prompts) do
-		local success, message = create_slash_cmd_prompt(file_info, true) -- force overwrite for manual import
+		local success, message = create_slash_cmd_prompt(file_info, true, transform_config) -- force overwrite for manual import
 		if success then
 			success_count = success_count + 1
 			table.insert(results, {
