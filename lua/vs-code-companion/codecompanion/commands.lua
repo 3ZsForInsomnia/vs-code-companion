@@ -8,13 +8,17 @@ local transformer = require("vs-code-companion.transform.transformer")
 local function ensure_codecompanion_ready()
 	local ok, codecompanion_config = pcall(require, "codecompanion.config")
 	if not ok then
-		error("vs-code-companion: CodeCompanion is not installed or loaded. Please ensure codecompanion.nvim is properly installed and configured.")
+		error(
+			"vs-code-companion: CodeCompanion is not installed or loaded. Please ensure codecompanion.nvim is properly installed and configured."
+		)
 	end
-	
+
 	if not codecompanion_config then
-		error("vs-code-companion: CodeCompanion configuration is not available. Please ensure CodeCompanion is properly set up.")
+		error(
+			"vs-code-companion: CodeCompanion configuration is not available. Please ensure CodeCompanion is properly set up."
+		)
 	end
-	
+
 	return codecompanion_config
 end
 
@@ -22,35 +26,35 @@ local function generate_command_name(filename)
 	if not filename or type(filename) ~= "string" or filename:match("^%s*$") then
 		error("vs-code-companion: Cannot generate command name from empty/invalid filename")
 	end
-	
+
 	-- Remove .md extension and sanitize
 	local name = filename:gsub("%.md$", ""):gsub("[^%w]", "_"):lower()
-	
+
 	-- Remove any leading/trailing underscores and collapse multiple underscores
 	name = name:gsub("^_+", ""):gsub("_+$", ""):gsub("_+", "_")
-	
+
 	-- After sanitization, ensure we still have something meaningful
 	if name == "" then
 		error("vs-code-companion: Filename '" .. filename .. "' produces no valid command name after sanitization")
 	end
-	
+
 	-- Ensure it starts with a letter or underscore (for Lua identifier rules)
 	if not name:match("^[%a_]") then
 		name = "_" .. name
 	end
-	
+
 	return "vsc_" .. name
 end
 
 local create_slash_cmd_prompt = function(file_info, force_overwrite, transform_config)
 	force_overwrite = force_overwrite or false
-	
+
 	-- Use the transformation system to convert markdown to CodeCompanion format
 	local prompt_config, err = transformer.transform_to_codecompanion(file_info, transform_config)
 	if not prompt_config then
 		return false, err or "Failed to transform prompt"
 	end
-	
+
 	-- Extract command name from the generated config
 	local command_name = prompt_config.opts and prompt_config.opts.short_name
 	if not command_name then
@@ -107,30 +111,36 @@ function M.import_all_prompts()
 			table.insert(results, {
 				filename = file_info.filename,
 				success = true,
-				message = message
+				message = message,
 			})
 		else
 			table.insert(results, {
 				filename = file_info.filename,
 				success = false,
-				message = message
+				message = message,
 			})
 		end
 	end
 	-- Always notify about import results
-	v.notify(string.format("vs-code-companion: Imported %d/%d prompts successfully", success_count, total_count), v.log.levels.INFO)
-	
+	v.notify(
+		string.format("vs-code-companion: Imported %d/%d prompts successfully", success_count, total_count),
+		v.log.levels.INFO
+	)
+
 	-- Always log detailed results to :messages
 	for _, result in ipairs(results) do
 		if result.success then
 			vim.cmd(string.format("echomsg 'vs-code-companion: %s - %s'", result.filename, result.message))
 		else
-			vim.cmd(string.format("echomsg 'vs-code-companion: Failed to import %s - %s'", result.filename, result.message))
+			vim.cmd(
+				string.format("echomsg 'vs-code-companion: Failed to import %s - %s'", result.filename, result.message)
+			)
 		end
 	end
 
 	return success_count > 0
 end
+
 function M.import_all_prompts_with_feedback()
 	-- Ensure CodeCompanion is ready before attempting any imports
 	local ok, err = pcall(ensure_codecompanion_ready)
@@ -163,26 +173,31 @@ function M.import_all_prompts_with_feedback()
 			table.insert(results, {
 				filename = file_info.filename,
 				success = true,
-				message = message
+				message = message,
 			})
 		else
 			table.insert(results, {
 				filename = file_info.filename,
 				success = false,
-				message = message
+				message = message,
 			})
 		end
 	end
 
 	-- Always notify about import results
-	v.notify(string.format("vs-code-companion: Imported %d/%d prompts successfully", success_count, total_count), v.log.levels.INFO)
-	
+	v.notify(
+		string.format("vs-code-companion: Imported %d/%d prompts successfully", success_count, total_count),
+		v.log.levels.INFO
+	)
+
 	-- Always log detailed results to :messages
 	for _, result in ipairs(results) do
 		if result.success then
 			vim.cmd(string.format("echomsg 'vs-code-companion: %s - %s'", result.filename, result.message))
 		else
-			vim.cmd(string.format("echomsg 'vs-code-companion: Failed to import %s - %s'", result.filename, result.message))
+			vim.cmd(
+				string.format("echomsg 'vs-code-companion: Failed to import %s - %s'", result.filename, result.message)
+			)
 		end
 	end
 end
