@@ -201,7 +201,7 @@ Add VS Code prompt functionality directly to CodeCompanion chat buffers by confi
     strategies = {
       chat = {
         slash_commands = {
-          vs_import = require("vs-code-companion").import_slash_command,
+          vs_import = function() require("vs-code-companion").import_slash_command() end,
         },
       },
     },
